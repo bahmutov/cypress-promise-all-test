@@ -1,6 +1,10 @@
 describe('Cypress.Promise.all', () => {
+  beforeEach(() => {
+    cy.visit('https://example.cypress.io/')
+  })
+
   it('works with values', () => {
-    Cypress.Promise.all([
+    return Cypress.Promise.all([
       Promise.resolve('a'),
       Promise.resolve('b')
     ]).then(([a, b]) => {
@@ -10,7 +14,7 @@ describe('Cypress.Promise.all', () => {
   })
 
   it('spreads resolved values', () => {
-    Cypress.Promise.all([
+    return Cypress.Promise.all([
       Promise.resolve('a'),
       Promise.resolve('b')
     ]).spread((a, b) => {
@@ -19,17 +23,15 @@ describe('Cypress.Promise.all', () => {
     })
   })
 
+  const getNavCommands = () =>
+    cy.get('ul.nav')
+      .contains('Commands')
+
+  const getNavUtilities = () =>
+    cy.get('ul.nav')
+      .contains('Utilities')
+
   it('grabs element values', () => {
-    cy.visit('https://example.cypress.io/')
-
-    const getNavCommands = () =>
-      cy.get('ul.nav')
-        .contains('Commands')
-
-    const getNavUtilities = () =>
-      cy.get('ul.nav')
-        .contains('Utilities')
-
     // each works by itself
     getNavCommands()
       .should('be.visible')
@@ -38,15 +40,38 @@ describe('Cypress.Promise.all', () => {
       .should('be.visible')
 
     // lets get both elements
-    Cypress.Promise.all([
-      getNavCommands(),
-      getNavUtilities()
-    ]).then(([commands, utilities]) => {
+    return all(
+      getNavCommands,
+      getNavUtilities
+    ).then(([commands, utilities]) => {
       console.log('got commands', commands.text())
       console.log('got utilities', utilities.text())
       // debugger
-      expect(utilities.text()).to.equal('Utilities')
-      expect(commands.text()).to.equal('Commands')
+      expect(utilities.text().trim()).to.equal('Utilities')
+      expect(commands.text().trim()).to.equal('Commands')
+    })
+  })
+
+  const all = (...fns) => {
+    const results = []
+
+    // maybe handle a case when it is a plain value
+    // and just push it directly into the results
+    fns.reduce((prev, fn) => {
+      fn().then(result => results.push(result))
+      return results
+    }, results)
+
+    return cy.wrap(results)
+  }
+
+  it('wraps multiple cypress commands', () => {
+    return all(
+      getNavCommands,
+      getNavUtilities
+    ).spread((commands, utilities) => {
+      console.log('got commands', commands.text())
+      console.log('got utilities', utilities.text())
     })
   })
 })
